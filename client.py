@@ -36,6 +36,22 @@ def receive():
                 file.write(content)
                 file.close()
                 continue
+            if message.split()[0] == "_send_multi_files":
+                allFiles = message.split()[1:]
+                for filename in allFiles:
+                    content = ""
+                    while True:
+                        data = client.recv(2048).decode()
+                        if data == " ":
+                            break
+                        content += data
+                    file = open("./client_files/" + filename, "x")
+                    file.close()
+                    file = open("./client_files/" + filename, "w")
+                    file.write(content)
+                    file.close()
+                    client.sendall(bytes("Done", "utf8"))
+                continue
             print(message)
         except:
             break
@@ -99,7 +115,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "10.126.7.119"
+host = "192.168.111.201"
 port = 8080
 client.connect((host, int(port)))
 threading.Thread(target=receive).start()

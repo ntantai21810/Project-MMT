@@ -8,7 +8,7 @@ address = {}
 
 usersOnline = []
 
-host = "10.126.7.119"
+host = "192.168.111.201"
 port = 8080
 
 #Create server socket and bind address
@@ -183,7 +183,30 @@ def handleClient(connection):
         elif message.split()[0] == "download":
             option = message.split()[1]
             if option == "multi_files":
-                print()
+                allFiles = message.split()[2:]
+                filteredFiles = []
+                for filename in allFiles:
+                    if os.path.isfile("./server_files/" + filename):
+                        filteredFiles.append(filename)
+                    else:
+                        connection.sendall(bytes(filename + " is not exist", "utf8"))
+                connection.sendall(bytes("_send_multi_files " + " ".join(filteredFiles), "utf8"))
+                for filename in filteredFiles:
+                    file = open("./server_files/" + filename, "r")
+                    while True:
+                        data = file.read(2048)
+                        if not data:
+                            connection.sendall(bytes(" ", "utf8"))
+                            break
+                        connection.sendall(bytes(data, "utf8"))
+                    file.close()
+                    isDone = connection.recv(2048).decode()
+                    if isDone == "Done":
+                        continue
+                    else: 
+                        connection.sendall(bytes("Send failed", "utf8"))
+                        break
+                connection.sendall(bytes("Download successfull", "utf8"))
             else:
                 if os.path.isfile("./server_files/" + option):
                     connection.sendall(bytes("_sendfile " + option, "utf8"))
@@ -195,7 +218,7 @@ def handleClient(connection):
                             break
                         connection.sendall(bytes(data, "utf8"))
                     file.close()
-                    connection.sendall(bytes("Receive successfull", "utf8"))
+                    connection.sendall(bytes("Download successfull", "utf8"))
                 else:
                     connection.sendall(bytes("File is not exist", "utf8"))
         else:
