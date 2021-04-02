@@ -8,7 +8,7 @@ address = {}
 
 usersOnline = []
 
-host = "10.126.0.214"
+host = "192.168.1.212"
 port = 8080
 
 #Create server socket and bind address
@@ -84,22 +84,21 @@ def handleClient(connection):
         #Check if user is logged in
         #Check username in database, old password and new password is same
         #Store new info to database
+        elif not hasLogin:
+            connection.sendall(bytes("You must login", "utf8"))
         elif message.split()[0] == "change_password":
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
             password = connection.recv(2048).decode()
             connection.sendall(bytes("new password: ", "utf8"))
             newPassword = connection.recv(2048).decode()
-            if hasLogin:
-                if authUser(username, password) == 0:
-                    changePassword(username, password, newPassword)
-                    connection.sendall(bytes("Change successfull", "utf8"))
-                elif authUser(username, password) == 1:
-                    connection.sendall(bytes("Wrong password", "utf8"))
-                else:
-                    connection.sendall(bytes("Username doesn't have in database", "utf8"))
+            if authUser(username, password) == 0:
+                changePassword(username, password, newPassword)
+                connection.sendall(bytes("Change successfull", "utf8"))
+            elif authUser(username, password) == 1:
+                connection.sendall(bytes("Wrong password", "utf8"))
             else:
-                connection.sendall(bytes("You must login", "utf8"))
+                connection.sendall(bytes("Username doesn't have in database", "utf8"))
         #Handle check user
         #Get option and print corresponding info 
         elif message.split()[0] == "check_user":
@@ -130,21 +129,18 @@ def handleClient(connection):
         #Check if user is logged in
         #Get option, data and handle
         elif message.split()[0] == "setup_info":
-            if (not hasLogin):
-                connection.sendall(bytes("You must login", "utf8"))
-            else:
-                option = message.split()[1]
-                data = message.split()[2]
-                if option == "fullname":
-                    changeName(clients[connection], data)
-                    connection.sendall(bytes("Change successful", "utf8"))
-                    clients[connection] = data
-                elif option == "date":
-                    changeDateOfBirth(clients[connection], data)
-                    connection.sendall(bytes("Change successful", "utf8"))
-                elif option == "note":
-                    changeNote(clients[connection], data)
-                    connection.sendall(bytes("Change successful", "utf8"))
+            option = message.split()[1]
+            data = message.split()[2]
+            if option == "fullname":
+                changeName(clients[connection], data)
+                connection.sendall(bytes("Change successful", "utf8"))
+                clients[connection] = data
+            elif option == "date":
+                changeDateOfBirth(clients[connection], data)
+                connection.sendall(bytes("Change successful", "utf8"))
+            elif option == "note":
+                changeNote(clients[connection], data)
+                connection.sendall(bytes("Change successful", "utf8"))
         elif message.split()[0] == "upload":
             option = message.split()[1]
             if option == "change_name" or option == "multi_files":
@@ -153,6 +149,23 @@ def handleClient(connection):
                 if option == "change_name":
                     os.rename("./server_files/" + oldName, "./server_files/" + newName)
                     connection.sendall(bytes("Change successfully", "utf8"))
+                if option == "multi_files":
+                    allFiles = message.split()[2:]
+                    for fileName in allFiles:
+                        content = ""
+                        while True:
+                            data =  connection.recv(2048).decode()
+                            if (data == " "):
+                                break
+                            content += data
+                        file = open("./server_files/" + fileName, "x")
+                        file.close()
+                        file = open("./server_files/" + fileName, "w")
+                        file.write(content)
+                        file.close()
+                        connection.sendall(bytes("Done", "utf8"))
+                    print("Receives files from " + clients[connection])
+                    connection.sendall(bytes("Send successful", "utf8"))
             else:
                 content = ""
                 while True:

@@ -7,15 +7,21 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #If input password, don't show string when user type
 inputPassword = 0
 
+isRecevied = True
+
 #Receive message from server and show to console
 #If the message is {quit}, close the client
 def receive():
+    global isRecevied
     while True:
         try:
             message = client.recv(2048).decode()
             if message == "close":
                 client.close()  
                 break
+            if message == "Done":
+                isRecevied = True
+                continue
             print(message)
         except:
             break
@@ -47,6 +53,22 @@ def send():
                         client.sendall(bytes(data, "utf8"))
                     file.close()
                     continue
+                if option == "multi_files":
+                    client.sendall(bytes(message, "utf8"))
+                    allFiles = message.split()[2:]
+                    global isRecevied
+                    for fileName in allFiles:
+                        file = open("./client_files/" + fileName, "r")
+                        while True:
+                            if isRecevied:
+                                data = file.read(2048)
+                                if not data:
+                                    client.sendall(bytes(" ", "utf8"))
+                                    break
+                                client.sendall(bytes(data, "utf8"))
+                        isRecevied = False
+                        file.close()
+                    continue
         client.sendall(bytes(message, "utf8"))  
         if (message == "close"):
             break       
@@ -63,7 +85,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "10.126.0.214"
+host = "192.168.1.212"
 port = 8080
 client.connect((host, int(port)))
 threading.Thread(target=receive).start()
