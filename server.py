@@ -8,7 +8,7 @@ address = {}
 
 usersOnline = []
 
-host = "192.168.1.212"
+host = "10.126.7.119"
 port = 8080
 
 #Create server socket and bind address
@@ -180,6 +180,24 @@ def handleClient(connection):
                 file.close()
                 print("Receive file from " + clients[connection])
                 connection.sendall(bytes("Send successful", "utf8"))
+        elif message.split()[0] == "download":
+            option = message.split()[1]
+            if option == "multi_files":
+                print()
+            else:
+                if os.path.isfile("./server_files/" + option):
+                    connection.sendall(bytes("_sendfile " + option, "utf8"))
+                    file = open("./server_files/" + option, "r")
+                    while True:
+                        data = file.read(2048)
+                        if not data:
+                            connection.sendall(bytes(" ", "utf8"))
+                            break
+                        connection.sendall(bytes(data, "utf8"))
+                    file.close()
+                    connection.sendall(bytes("Receive successfull", "utf8"))
+                else:
+                    connection.sendall(bytes("File is not exist", "utf8"))
         else:
             connection.sendall(bytes("close", "utf8"))
             print(clients[connection] + " has left the room")
