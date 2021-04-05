@@ -1,6 +1,7 @@
 import socket
 import threading
 import getpass
+import subprocess
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -103,6 +104,15 @@ def send():
         if (message == "close"):
             break       
 
+def chatroom():
+    while True:
+        try:
+            message = client.recv(2048).decode()
+            print(1)
+            print(message)
+        except:
+            break
+
 def connecToServer():
     while True:
         address = input("")
@@ -115,7 +125,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "192.168.111.201"
+host = "192.168.1.213"
 port = 8080
 client.connect((host, int(port)))
 threading.Thread(target=receive).start()

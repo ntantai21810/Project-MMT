@@ -8,7 +8,7 @@ address = {}
 
 usersOnline = []
 
-host = "192.168.111.201"
+host = "192.168.1.213"
 port = 8080
 
 #Create server socket and bind address
@@ -18,9 +18,11 @@ server.bind((host, port))
 #Accept connection from client and create thread for this connection
 def acceptConnection():
     while True:
-        connection, addr = server.accept()
-        print(addr[0] + " has connected")
-        address[connection] = addr[0]
+        (connection, addr) = server.accept()
+        host = addr[0]
+        port = str(addr[1])
+        print(host + ", " + port + " has connected")
+        address[connection] = addr
         threading.Thread(target=handleClient, args=(connection,)).start()
 
 
@@ -42,11 +44,11 @@ def handleClient(connection):
                 if authUser(username, password) == 0: 
                     welcomeMessage = "Welcome " + username +". If you want to exit type 'close'"
                     connection.sendall(bytes(welcomeMessage, "utf8"))
-                    message = " has joined the chat room"
-                    broadcast(message, connection)
+                    message = "has connected to server"
                     clients[connection] = username
                     hasLogin = True
                     usersOnline.append(username)
+                    broadcast(message, connection)
                 elif authUser(username, password) == 1:
                     connection.sendall(bytes("Wrong password", "utf8"))
                 else:
@@ -221,11 +223,13 @@ def handleClient(connection):
                     connection.sendall(bytes("Download successfull", "utf8"))
                 else:
                     connection.sendall(bytes("File is not exist", "utf8"))
+        elif message == "chat room":
+            connection.sendall(bytes("List users online: " + ", ".join((usersOnline)), "utf8"))
         else:
             connection.sendall(bytes("close", "utf8"))
-            print(clients[connection] + " has left the room")
+            print(clients[connection] + " has disconnected")
             connection.close()
-            broadcast(clients[connection] + " has left the room", connection)
+            broadcast(clients[connection] + " has disconnected", connection)
             usersOnline.remove(clients[connection])
             del clients[connection]
             del address[connection]
