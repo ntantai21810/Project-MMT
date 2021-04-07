@@ -8,7 +8,7 @@ address = {}
 
 usersOnline = []
 
-host = "192.168.1.213"
+host = "192.168.111.201"
 port = 8080
 
 #Create server socket and bind address
@@ -34,6 +34,7 @@ def handleClient(connection):
         #Handle login
         #Check if user isn't logged in
         #Check user name and password in database
+        print(message)
         if message.split()[0] == "login":
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
@@ -107,7 +108,7 @@ def handleClient(connection):
             option = message.split()[1]
             username = message.split()[2]
             if not hasInDatabase(username):
-                connection.sendall(bytes("User doesn't have in databse"))
+                connection.sendall(bytes("User doesn't have in database"))
             elif option == "find":
                 connection.sendall(bytes("User has in database", "utf8"))
             elif option == "online":
@@ -125,7 +126,7 @@ def handleClient(connection):
                 note = getNoteOfUser(username)
                 connection.sendall(bytes(note, "utf8"))
             elif option == "show_all":
-                info = username + " " + getDateOfBirth(username) + " " + getNoteOfUser(username)
+                info = username + " " + getDateOfBirth(username) + " " + getNoteOfUser(username) + " " + getNickName(username)
                 connection.sendall(bytes(info, "utf8"))
         #Handle setup info
         #Check if user is logged in
@@ -133,10 +134,10 @@ def handleClient(connection):
         elif message.split()[0] == "setup_info":
             option = message.split()[1]
             data = message.split()[2]
+            print(data)
             if option == "fullname":
                 changeName(clients[connection], data)
                 connection.sendall(bytes("Change successful", "utf8"))
-                clients[connection] = data
             elif option == "date":
                 changeDateOfBirth(clients[connection], data)
                 connection.sendall(bytes("Change successful", "utf8"))
@@ -226,10 +227,11 @@ def handleClient(connection):
         elif message == "chat room":
             connection.sendall(bytes("List users online: " + ", ".join((usersOnline)), "utf8"))
         else:
+            
             connection.sendall(bytes("close", "utf8"))
-            print(clients[connection] + " has disconnected")
+            print(getNickName(clients[connection]) + " has disconnected")
             connection.close()
-            broadcast(clients[connection] + " has disconnected", connection)
+            broadcast(getNickName(clients[connection]) + " has disconnected", connection)
             usersOnline.remove(clients[connection])
             del clients[connection]
             del address[connection]
@@ -239,7 +241,7 @@ def handleClient(connection):
 def broadcast(message, connection):
     for sock in clients:
         if sock != connection:
-            sock.sendall(bytes(clients[connection] + ": " + message, "utf8"))
+            sock.sendall(bytes(getNickName(clients[connection]) + ": " + message, "utf8"))
 
 #Check username and password
 # - 0: True
@@ -333,7 +335,10 @@ def changePassword(username, password, newPassword):
         if user == "":
             break
         if username == user.split(" ")[0]:
-            updatedUsers += user.replace(password, newPassword) + "\n"
+            if len(user.split(" ")) <= 4:
+                updatedUsers += user.split()[0] + " " + newPassword + " " + user.split()[2] + " " + user.split()[3] + "\n"
+            else:
+                updatedUsers += user.split()[0] + " " + newPassword + " " + user.split()[2] + " " + user.split()[3] + " " + user.split()[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()
@@ -345,17 +350,19 @@ def changeName(username, nickname):
     file = open("./database.txt", "r")
     allUsers = file.read().split("\n")
     updatedUsers = ""
+    print(username, nickname)
     for user in allUsers:
         if user == "":
             break
         if username == user.split(" ")[0]:
-            if len(user.split(" ") <= 4):
-                updatedUsers += user.replace(user.split(" ")[3], nickname)
+            if len(user.split(" ")) <= 4:
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + nickname + "\n"
             else:
-                updatedUsers += user.replace(user.split(" ")[4], nickname)
-                
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + user.split()[3] + " " + nickname + "\n"      
         else:
             updatedUsers += user + "\n"
+
+    print(updatedUsers)
     file.close()
     file = open("./database.txt", "w")
     file.write(updatedUsers)
@@ -369,7 +376,10 @@ def changeDateOfBirth(username, date):
         if user == "":
             break
         if username == user.split(" ")[0]:
-            updatedUsers += user.replace(user.split()[2], date) + "\n"
+            if len(user.split(" ")) <= 4:
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + date + " " + user.split()[3] + "\n"
+            else:
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + date + " " + user.split()[3] + " " + user.split()[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()
@@ -384,11 +394,11 @@ def changeNote(username, note):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]: 
-            if (len(user.split()) <= 4):
-                updatedUsers += user.split(" ")[0] + " " + user.split(" ")[1] + " " + user.split(" ")[2] + " " + note + " " + user.split(" ")[3] + "\n"
+        if username == user.split(" ")[0]:
+            if len(user.split(" ")) <= 4:
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + note + "\n"
             else:
-                updatedUsers += user.replace(user.split()[3], note) + "\n"
+                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + note + " " + user.split()[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()

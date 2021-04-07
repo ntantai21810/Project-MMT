@@ -8,21 +8,24 @@ client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 #If input password, don't show string when user type
 inputPassword = 0
 
-isRecevied = True
+isReceived = True
 
 #Receive message from server and show to console
 #If the message is {quit}, close the client
 def receive():
-    global isRecevied
+    global isReceived
     while True:
         try:
             message = client.recv(2048).decode()
+            #Close the connection
             if message == "close":
                 client.close()  
                 break
+            #Send 1 file successfull, use in send multi file
             if message == "Done":
-                isRecevied = True
+                isReceived = True
                 continue
+            #Client receive file from server
             if message.split()[0] == "_sendfile":
                 content = ""
                 filename = message.split()[1]
@@ -37,6 +40,7 @@ def receive():
                 file.write(content)
                 file.close()
                 continue
+            #Client receive multi file from server
             if message.split()[0] == "_send_multi_files":
                 allFiles = message.split()[1:]
                 for filename in allFiles:
@@ -87,31 +91,24 @@ def send():
                 if option == "multi_files":
                     client.sendall(bytes(message, "utf8"))
                     allFiles = message.split()[2:]
-                    global isRecevied
+                    global isReceived
                     for fileName in allFiles:
                         file = open("./client_files/" + fileName, "r")
                         while True:
-                            if isRecevied:
+                            if isReceived:
                                 data = file.read(2048)
                                 if not data:
                                     client.sendall(bytes(" ", "utf8"))
                                     break
                                 client.sendall(bytes(data, "utf8"))
-                        isRecevied = False
+                        isReceived = False
                         file.close()
                     continue
-        client.sendall(bytes(message, "utf8"))  
+            if message.find("chat room") != -1:
+                isChatting = True
+        client.sendall(bytes(message, "utf8")) 
         if (message == "close"):
             break       
-
-def chatroom():
-    while True:
-        try:
-            message = client.recv(2048).decode()
-            print(1)
-            print(message)
-        except:
-            break
 
 def connecToServer():
     while True:
@@ -125,8 +122,10 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "192.168.1.213"
+host = "192.168.111.201"
 port = 8080
 client.connect((host, int(port)))
-threading.Thread(target=receive).start()
-threading.Thread(target=send).start()
+
+receiveThread = threading.Thread(target=receive).start()
+
+sendThread = threading.Thread(target=send).start()
