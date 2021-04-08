@@ -1,19 +1,20 @@
 import socket
 import threading
 import getpass
-import subprocess
+import os
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
-#If input password, don't show string when user type
+#If input password, don't show character when user type
 inputPassword = 0
 
 isReceived = True
-
+isChatting = False
 #Receive message from server and show to console
-#If the message is {quit}, close the client
+#If the message is close, close the client
 def receive():
     global isReceived
+    global isChatting
     while True:
         try:
             message = client.recv(2048).decode()
@@ -57,6 +58,11 @@ def receive():
                     file.close()
                     client.sendall(bytes("Done", "utf8"))
                 continue
+            if message == "_chat":
+                isChatting = True
+                client.sendall(bytes("_onchat", "utf8"))
+                os.system("cls")
+                continue
             print(message)
         except:
             break
@@ -64,6 +70,7 @@ def receive():
 #Get message from user input and send to server
 def send():
     global inputPassword
+    global isChatting
     while True:
         if inputPassword > 0:
             message = getpass.getpass("")
@@ -71,6 +78,11 @@ def send():
         else:
             message = input()
             #Handle input password
+            if isChatting:
+                if message == "_exit":
+                    isChatting = False   
+                client.sendall(bytes("_c" + message, "utf8"))
+                continue
             if message.split()[0] == "login" or message.split()[0] == "register":
                 inputPassword = 1
             if message.split()[0] == "change_password":
@@ -104,7 +116,7 @@ def send():
                         isReceived = False
                         file.close()
                     continue
-            if message.find("chat room") != -1:
+            if message.find("create") != -1:
                 isChatting = True
         client.sendall(bytes(message, "utf8")) 
         if (message == "close"):
@@ -122,7 +134,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "192.168.111.201"
+host = "192.168.1.8"
 port = 8080
 client.connect((host, int(port)))
 

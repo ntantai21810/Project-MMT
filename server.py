@@ -8,7 +8,9 @@ address = {}
 
 usersOnline = []
 
-host = "192.168.111.201"
+chatRooms = {}
+
+host = "192.168.1.8"
 port = 8080
 
 #Create server socket and bind address
@@ -29,12 +31,12 @@ def acceptConnection():
 #Handle connection
 def handleClient(connection):
     hasLogin = False
+    isChatting = False
     while True:
         message = connection.recv(2048).decode()
         #Handle login
         #Check if user isn't logged in
         #Check user name and password in database
-        print(message)
         if message.split()[0] == "login":
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
@@ -133,16 +135,15 @@ def handleClient(connection):
         #Get option, data and handle
         elif message.split()[0] == "setup_info":
             option = message.split()[1]
-            data = message.split()[2]
-            print(data)
+            data = message.split()[2:]
             if option == "fullname":
-                changeName(clients[connection], data)
+                changeName(clients[connection], " ".join((data)))
                 connection.sendall(bytes("Change successful", "utf8"))
             elif option == "date":
-                changeDateOfBirth(clients[connection], data)
+                changeDateOfBirth(clients[connection], " ".join((data)))
                 connection.sendall(bytes("Change successful", "utf8"))
             elif option == "note":
-                changeNote(clients[connection], data)
+                changeNote(clients[connection], " ".join((data)))
                 connection.sendall(bytes("Change successful", "utf8"))
         elif message.split()[0] == "upload":
             option = message.split()[1]
@@ -225,9 +226,19 @@ def handleClient(connection):
                 else:
                     connection.sendall(bytes("File is not exist", "utf8"))
         elif message == "chat room":
-            connection.sendall(bytes("List users online: " + ", ".join((usersOnline)), "utf8"))
-        else:
-            
+            index = usersOnline.index(clients[connection])
+            filteredUsersOnline = usersOnline[:index] + usersOnline[index+1:]
+            connection.sendall(bytes("List users online: " + ", ".join((filteredUsersOnline)), "utf8"))
+        elif message == "_onchat":
+            isChatting = True
+        elif message.split()[0] == "create":
+            roomId = message.split()[2]
+            allUsers = message.split()[4:]
+            sendMessageToChatRoom(allUsers, "_chat")
+            allUsers.append(clients[connection])
+            chatRooms[roomId] = allUsers
+            connection.sendall(bytes("_chat", "utf8"))
+        elif message == "close":
             connection.sendall(bytes("close", "utf8"))
             print(getNickName(clients[connection]) + " has disconnected")
             connection.close()
@@ -236,12 +247,34 @@ def handleClient(connection):
             del clients[connection]
             del address[connection]
             break
+        elif isChatting:
+            filteredMessage = message[2:]
+            if filteredMessage == "_exit":
+                isChatting = False
+                for room in chatRooms:
+                    if clients[connection] in chatRooms[room]:
+                        chatRooms[room].remove(clients[connection])
+                        break
+                continue
+            for room in chatRooms:
+                if clients[connection] in chatRooms[room]:
+                    sendMessageToChatRoom(chatRooms[room], filteredMessage, connection)
+                    break
 
 #Notify to other clients
 def broadcast(message, connection):
     for sock in clients:
         if sock != connection:
             sock.sendall(bytes(getNickName(clients[connection]) + ": " + message, "utf8"))
+
+def sendMessageToChatRoom(usersInRoom, message, connection = "none"):
+    for sock in clients:
+        if sock != connection and clients[sock] in usersInRoom:
+            if connection != "none":
+                sock.sendall(bytes(getNickName(clients[connection]) + ": " + message, "utf8"))
+            else:
+                sock.sendall(bytes(message, "utf8"))
+
 
 #Check username and password
 # - 0: True
@@ -253,9 +286,9 @@ def authUser(username, password):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0] and password == user.split()[1]:
+        if username == user.split(";")[0] and password == user.split(";")[1]:
             return 0
-        elif username == user.split(" ")[0] and password != user.split()[1]:
+        elif username == user.split(";")[0] and password != user.split(";")[1]:
             return 1
     file.close()
     return 2
@@ -267,7 +300,7 @@ def hasInDatabase(username):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
+        if username == user.split(";")[0]:
             return True
     file.close()
     return False
@@ -278,8 +311,8 @@ def getDateOfBirth(username):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            return user.split()[2]
+        if username == user.split(";")[0]:
+            return user.split(";")[2]
     file.close()
     return ""
 
@@ -289,11 +322,11 @@ def getNoteOfUser(username):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if (len(user.split()) < 4):
+        if username == user.split(";")[0]:
+            if (len(user.split(";")) < 4):
                 return ""
             else:
-                return user.split()[3]
+                return user.split(";")[3]
     file.close()
     return ""
 
@@ -304,25 +337,25 @@ def getNickName(username):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if len(user.split(" ")) <= 4:
-                return user.split(" ")[3]
+        if username == user.split(";")[0]:
+            if len(user.split(";")) <= 4:
+                return user.split(";")[3]
             else:
-                return user.split(" ")[4]
+                return user.split(";")[4]
     file.close()
     return ""
 
 def writeToDatabase(username, password, dateOfBirth, note, nickname):
     file = open("./database.txt", "a")
     file.write(username)
-    file.write(" ")
+    file.write(";")
     file.write(password)
-    file.write(" ")
+    file.write(";")
     file.write(dateOfBirth)
-    file.write(" ")
+    file.write(";")
     if note != "_b":
         file.write(note)
-        file.write(" ")
+        file.write(";")
     file.write(nickname)
     file.write("\n")
     file.close()
@@ -334,11 +367,11 @@ def changePassword(username, password, newPassword):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if len(user.split(" ")) <= 4:
-                updatedUsers += user.split()[0] + " " + newPassword + " " + user.split()[2] + " " + user.split()[3] + "\n"
+        if username == user.split(";")[0]:
+            if len(user.split(";")) <= 4:
+                updatedUsers += user.split(";")[0] + ";" + newPassword + ";" + user.split(";")[2] + ";" + user.split(";")[3] + "\n"
             else:
-                updatedUsers += user.split()[0] + " " + newPassword + " " + user.split()[2] + " " + user.split()[3] + " " + user.split()[4] + "\n"      
+                updatedUsers += user.split(";")[0] + ";" + newPassword + ";" + user.split(";")[2] + ";" + user.split(";")[3] + ";" + user.split(";")[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()
@@ -350,19 +383,16 @@ def changeName(username, nickname):
     file = open("./database.txt", "r")
     allUsers = file.read().split("\n")
     updatedUsers = ""
-    print(username, nickname)
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if len(user.split(" ")) <= 4:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + nickname + "\n"
+        if username == user.split(";")[0]:
+            if len(user.split(";")) <= 4:
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + user.split(";")[2] + ";" + nickname + "\n"
             else:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + user.split()[3] + " " + nickname + "\n"      
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + user.split(";")[2] + ";" + user.split(";")[3] + ";" + nickname + "\n"      
         else:
             updatedUsers += user + "\n"
-
-    print(updatedUsers)
     file.close()
     file = open("./database.txt", "w")
     file.write(updatedUsers)
@@ -375,11 +405,11 @@ def changeDateOfBirth(username, date):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if len(user.split(" ")) <= 4:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + date + " " + user.split()[3] + "\n"
+        if username == user.split(";")[0]:
+            if len(user.split(";")) <= 4:
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + date + ";" + user.split(";")[3] + "\n"
             else:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + date + " " + user.split()[3] + " " + user.split()[4] + "\n"      
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + date + ";" + user.split(";")[3] + ";" + user.split(";")[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()
@@ -394,11 +424,11 @@ def changeNote(username, note):
     for user in allUsers:
         if user == "":
             break
-        if username == user.split(" ")[0]:
-            if len(user.split(" ")) <= 4:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + note + "\n"
+        if username == user.split(";")[0]:
+            if len(user.split(";")) <= 4:
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + user.split(";")[2] + ";" + note + "\n"
             else:
-                updatedUsers += user.split()[0] + " " + user.split()[1] + " " + user.split()[2] + " " + note + " " + user.split()[4] + "\n"      
+                updatedUsers += user.split(";")[0] + ";" + user.split(";")[1] + ";" + user.split(";")[2] + ";" + note + ";" + user.split(";")[4] + "\n"      
         else:
             updatedUsers += user + "\n"
     file.close()
