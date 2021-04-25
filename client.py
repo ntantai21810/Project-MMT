@@ -2,6 +2,8 @@ import socket
 import threading
 import getpass
 import os
+from key import encrypt_message
+from key import decrypt_message
 
 client = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 
@@ -33,7 +35,13 @@ def receive():
                 while True:
                     data = client.recv(2048).decode()
                     if data == " ":
+                        client.sendall(bytes("_done", "utf8"))
                         break
+                    check = data[:4]
+                    length = len(data)
+                    if check == "b'gA" and length > 100:
+                        encrypt_data = bytes(data[2:length-1],"utf8")
+                        data = decrypt_message(encrypt_data)
                     content += data
                 file = open("./client_files/" + filename, "x")
                 file.close()
@@ -49,7 +57,13 @@ def receive():
                     while True:
                         data = client.recv(2048).decode()
                         if data == " ":
+                            # client.sendall(bytes("_done", "utf8"))
                             break
+                        check = data[:4]
+                        length = len(data)
+                        if check == "b'gA" and length > 100:
+                            encrypt_data = bytes(data[2:length-1],"utf8")
+                            data = decrypt_message(encrypt_data)
                         content += data
                     file = open("./client_files/" + filename, "x")
                     file.close()
@@ -74,6 +88,9 @@ def send():
     while True:
         if inputPassword > 0:
             message = getpass.getpass("")
+            check = input("Do you want to encrypt message before sending? (Y/N): ")
+            if check == "Y":
+                message = str(encrypt_message(message))
             inputPassword -= 1 
         else:
             message = input()
@@ -87,8 +104,13 @@ def send():
                 inputPassword = 1
             if message.split()[0] == "change_password":
                 inputPassword = 2
+            if message.split()[0] == "download":
+                check = input("Do you want to encrypt message before sending? (Y/N): ")
+                if check == "Y":
+                    message = "_y" + message
             if message.split()[0] == "upload":
                 option = message.split()[1]
+                check = input("Do you want to encrypt message before sending? (Y/N): ")
                 if option != "change_name" and option != "multi_files":
                     client.sendall(bytes(message, "utf8"))
                     file = open("./client_files/" + option, "r")
@@ -97,6 +119,8 @@ def send():
                         if not data:
                             client.sendall(bytes(" ", "utf8"))
                             break
+                        if check == "Y":
+                            data = str(encrypt_message(data))
                         client.sendall(bytes(data, "utf8"))
                     file.close()
                     continue
@@ -112,6 +136,8 @@ def send():
                                 if not data:
                                     client.sendall(bytes(" ", "utf8"))
                                     break
+                                if check == "Y":
+                                    data = str(encrypt_message(data))
                                 client.sendall(bytes(data, "utf8"))
                         isReceived = False
                         file.close()
@@ -134,7 +160,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "192.168.1.8"
+host = "192.168.1.3"
 port = 8080
 client.connect((host, int(port)))
 

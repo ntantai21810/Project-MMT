@@ -1,6 +1,8 @@
 import socket
 import threading
 import os
+from key import encrypt_message
+from key import decrypt_message
 
 #Store name of clients and address of clients
 clients = {}
@@ -10,7 +12,7 @@ usersOnline = []
 
 chatRooms = {}
 
-host = "192.168.1.8"
+host = "192.168.1.3"
 port = 8080
 
 #Create server socket and bind address
@@ -41,11 +43,16 @@ def handleClient(connection):
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
             password = connection.recv(2048).decode()
+            length = len(password)
+            check = password[:4]
+            if check == "b'gA" and length > 30:
+                detext = bytes(password[2:length - 1], "utf8")
+                password = decrypt_message(detext)
             if (hasLogin):
                 connection.sendall(bytes("You has already login", "utf8"))
             else:
                 if authUser(username, password) == 0: 
-                    welcomeMessage = "Welcome " + username +". If you want to exit type 'close'"
+                    welcomeMessage = "Welcome " + username +" login to server. If you want to exit type 'close'"
                     connection.sendall(bytes(welcomeMessage, "utf8"))
                     message = "has connected to server"
                     clients[connection] = username
@@ -64,6 +71,11 @@ def handleClient(connection):
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
             password = connection.recv(2048).decode()
+            length = len(password)
+            check = password[:4]
+            if check == "b'gA" and length > 30:
+                detext = bytes(password[2:length - 1], "utf8")
+                password = decrypt_message(detext)
             connection.sendall(bytes("Date of birth: ", "utf8"))
             dateOfBirth = connection.recv(2048).decode()
             connection.sendall(bytes("Some note? (Press _b to blank) ", "utf8"))
@@ -95,8 +107,18 @@ def handleClient(connection):
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
             password = connection.recv(2048).decode()
+            length = len(password)
+            check = password[:4]
+            if check == "b'gA" and length > 30:
+                detext = bytes(password[2:length - 1], "utf8")
+                password = decrypt_message(detext)
             connection.sendall(bytes("new password: ", "utf8"))
             newPassword = connection.recv(2048).decode()
+            length = len(newPassword)
+            check = newPassword[:4]
+            if check == "b'gA" and length > 30:
+                detext = bytes(newPassword[2:length - 1], "utf8")
+                newPassword = decrypt_message(detext)
             if authUser(username, password) == 0:
                 changePassword(username, password, newPassword)
                 connection.sendall(bytes("Change successfull", "utf8"))
@@ -135,7 +157,7 @@ def handleClient(connection):
         #Get option, data and handle
         elif message.split()[0] == "setup_info":
             option = message.split()[1]
-            data = message.split()[2:]
+            data = message.split()[2:] 
             if option == "fullname":
                 changeName(clients[connection], " ".join((data)))
                 connection.sendall(bytes("Change successful", "utf8"))
@@ -159,8 +181,14 @@ def handleClient(connection):
                         content = ""
                         while True:
                             data =  connection.recv(2048).decode()
+                            check = data[:4]
+                            length = len(data)
                             if (data == " "):
                                 break
+                            if check == "b'gA" and length > 100:
+                                encrypt_data = bytes(data[2:length-1],"utf8")
+                                data = decrypt_message(encrypt_data)
+                            
                             content += data
                         file = open("./server_files/" + fileName, "x")
                         file.close()
@@ -174,6 +202,11 @@ def handleClient(connection):
                 content = ""
                 while True:
                     data =  connection.recv(2048).decode()
+                    check = data[:4]
+                    length = len(data)
+                    if check == "b'gA" and length > 100:
+                        encrypt_data = bytes(data[2:length-1],"utf8")
+                        data = decrypt_message(encrypt_data)
                     if (data == " "):
                         break
                     content += data
@@ -184,8 +217,9 @@ def handleClient(connection):
                 file.close()
                 print("Receive file from " + clients[connection])
                 connection.sendall(bytes("Send successful", "utf8"))
-        elif message.split()[0] == "download":
+        elif message.split()[0] == "download" or message.split()[0] == "_ydownload":
             option = message.split()[1]
+            check = message[:2]
             if option == "multi_files":
                 allFiles = message.split()[2:]
                 filteredFiles = []
@@ -202,6 +236,9 @@ def handleClient(connection):
                         if not data:
                             connection.sendall(bytes(" ", "utf8"))
                             break
+                        if check == "_y":
+                            data = str(encrypt_message(data))
+                        
                         connection.sendall(bytes(data, "utf8"))
                     file.close()
                     isDone = connection.recv(2048).decode()
@@ -220,9 +257,12 @@ def handleClient(connection):
                         if not data:
                             connection.sendall(bytes(" ", "utf8"))
                             break
+                        if check == "_y":
+                            data = str(encrypt_message(data))
                         connection.sendall(bytes(data, "utf8"))
                     file.close()
-                    connection.sendall(bytes("Download successfull", "utf8"))
+                    if connection.recv(2048).decode() == "_done":
+                        connection.sendall(bytes("Download successfull", "utf8"))
                 else:
                     connection.sendall(bytes("File is not exist", "utf8"))
         elif message == "chat room":
