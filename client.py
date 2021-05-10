@@ -86,15 +86,18 @@ def send():
     global inputPassword
     global isChatting
     while True:
+        #When user input password
         if inputPassword > 0:
             message = getpass.getpass("")
             check = input("Do you want to encrypt message before sending? (Y/N): ")
             if check == "Y":
                 message = str(encrypt_message(message))
-            inputPassword -= 1 
+            inputPassword -= 1
+        #When user input other things 
         else:
+            #Handle input type
             message = input()
-            #Handle input password
+            #When user in chat room
             if isChatting:
                 if message == "_exit":
                     isChatting = False   
@@ -160,7 +163,7 @@ def connecToServer():
             return
 
 # connecToServer()
-host = "192.168.1.3"
+host = "192.168.1.10"
 port = 8080
 client.connect((host, int(port)))
 

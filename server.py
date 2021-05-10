@@ -70,18 +70,18 @@ def handleClient(connection):
         elif message.split()[0] == "register":
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
-            password = connection.recv(2048).decode()
-            length = len(password)
-            check = password[:4]
-            if check == "b'gA" and length > 30:
-                detext = bytes(password[2:length - 1], "utf8")
-                password = decrypt_message(detext)
+            password = connection.recv(2048).decode() 
             connection.sendall(bytes("Date of birth: ", "utf8"))
             dateOfBirth = connection.recv(2048).decode()
             connection.sendall(bytes("Some note? (Press _b to blank) ", "utf8"))
             note = connection.recv(2048).decode()
             connection.sendall(bytes("Your nickname ", "utf8"))
             nickname = connection.recv(2048).decode()
+            length = len(password)
+            check = password[:4]
+            if check == "b'gA" and length > 30:
+                detext = bytes(password[2:length - 1], "utf8")
+                password = decrypt_message(detext)
             if (hasLogin):
                 connection.sendall(bytes("You has already login", "utf8"))
             else:
@@ -107,18 +107,21 @@ def handleClient(connection):
             username = message.split()[1]
             connection.sendall(bytes("password", "utf8"))
             password = connection.recv(2048).decode()
+            connection.sendall(bytes("new password: ", "utf8"))
+            newPassword = connection.recv(2048).decode()
+            #Check encrypt
             length = len(password)
             check = password[:4]
             if check == "b'gA" and length > 30:
                 detext = bytes(password[2:length - 1], "utf8")
                 password = decrypt_message(detext)
-            connection.sendall(bytes("new password: ", "utf8"))
-            newPassword = connection.recv(2048).decode()
+            #Check encrypt new password
             length = len(newPassword)
             check = newPassword[:4]
             if check == "b'gA" and length > 30:
                 detext = bytes(newPassword[2:length - 1], "utf8")
                 newPassword = decrypt_message(detext)
+            #Check in database
             if authUser(username, password) == 0:
                 changePassword(username, password, newPassword)
                 connection.sendall(bytes("Change successfull", "utf8"))
@@ -127,7 +130,7 @@ def handleClient(connection):
             else:
                 connection.sendall(bytes("Username doesn't have in database", "utf8"))
         #Handle check user
-        #Get option and print corresponding info 
+        #Get option and send corresponding info 
         elif message.split()[0] == "check_user":
             option = message.split()[1]
             username = message.split()[2]
@@ -167,7 +170,7 @@ def handleClient(connection):
             elif option == "note":
                 changeNote(clients[connection], " ".join((data)))
                 connection.sendall(bytes("Change successful", "utf8"))
-        elif message.split()[0] == "upload":
+        elif message.split()[0] == "upload":    
             option = message.split()[1]
             if option == "change_name" or option == "multi_files":
                 newName = message.split()[2]
